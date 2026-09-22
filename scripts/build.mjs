@@ -1,0 +1,14 @@
+import { build } from 'esbuild';
+import { readFile, mkdir, writeFile, cp } from 'node:fs/promises';
+const files={'/index.html':['dist/index.html','text/html; charset=utf-8'],'/styles.css':['dist/styles.css','text/css; charset=utf-8'],'/app.js':['dist/app.js','application/javascript; charset=utf-8']};
+files['/auto-refresh.js']=['dist/auto-refresh.js','application/javascript; charset=utf-8'];
+files['/source-health.js']=['dist/source-health.js','application/javascript; charset=utf-8'];
+const assets={};for(const [url,[file,type]] of Object.entries(files))assets[url]={body:await readFile(file,'utf8'),type};
+await mkdir('dist/server',{recursive:true});
+await build({entryPoints:['server/worker.mjs'],outfile:'dist/server/index.js',bundle:true,format:'esm',platform:'browser',target:'es2022',minify:true,define:{__PUBLIC_ASSETS__:JSON.stringify(assets)},legalComments:'none'});
+await mkdir('dist/.openai',{recursive:true});
+await cp('.openai/hosting.json','dist/.openai/hosting.json');
+await cp('drizzle','dist/.openai/drizzle',{recursive:true});
+const built=await import('../dist/server/index.js?checked='+Date.now());
+if(typeof built.default?.fetch!=='function')throw new Error('Worker must export fetch');
+console.log('Built Sustain Worker and migrations.');

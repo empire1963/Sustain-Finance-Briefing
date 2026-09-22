@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#102a34">
+  <meta name="description" content="A global sustainable-finance briefing. Read concise summaries, understand each story's importance and go straight to the original source.">
+  <title>Sustain | Sustainable finance briefing</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23102a34'/%3E%3Cpath d='M8 22v-5h4v5zm6 0V12h4v10zm6 0V7h4v15z' fill='%23bde878'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="./styles.css">
+  <script type="module" src="./app.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#news">Skip to the news</a>
+  <header class="masthead">
+    <div class="masthead-inner">
+      <a class="brand" href="./" aria-label="Sustain home"><span class="brand-icon" aria-hidden="true">s.</span><span>Sustain<span class="brand-sub">SUSTAINABLE FINANCE</span></span></a>
+      <div class="header-right"><span class="global-label">A global perspective</span><button class="about-button" data-about>About Sustain <span aria-hidden="true">↗</span></button></div>
+    </div>
+  </header>
+  <main class="page">
+    <div class="edition"><span>THE SUSTAIN BRIEFING</span><span>PUBLIC SOURCE FEED</span></div>
+    <div class="page-heading"><div><h1>Your briefing.</h1><p>Policy, capital and the transition to a sustainable economy.</p></div></div>
+    <nav class="reader-nav" aria-label="Your reading room"><button data-view="all" aria-pressed="true">All news</button><button data-view="briefing" aria-pressed="false">Daily briefing</button><button data-view="saved" aria-pressed="false">Saved <span id="saved-count">0</span></button><button data-view="calendar" aria-pressed="false">Policy calendar</button><button data-preferences class="personalise">My interests <span aria-hidden="true">↗</span></button></nav>
+    <p id="reader-status" class="reader-status" role="status" aria-live="polite"></p>
+    <section id="view-intro" class="view-intro" hidden></section>
+    <div class="live-bar"><div><strong id="source-count">Connecting to sources</strong><span id="checked-at">Loading collection status</span></div><div class="live-actions"><button data-sources>Sources & coverage</button><button id="refresh-button" data-refresh>Refresh</button></div><p id="refresh-status" role="status" aria-live="polite">Loading the latest collected stories and publisher status.</p></div>
+    <section class="controls" aria-label="Filter news">
+      <div class="search-row">
+        <label class="search-field"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></svg><span class="sr-only">Search stories</span><input id="search" type="search" placeholder="Search stories…" autocomplete="off"></label>
+        <label class="region-field"><span class="sr-only">Region</span><select id="region"><option value="all">All regions</option><option>Global</option><option>Europe</option><option>Asia-Pacific</option><option>Africa</option><option>Americas</option></select></label>
+      </div>
+      <div class="additional-filters"><label><span class="sr-only">Source</span><select id="source"><option value="all">All sources</option></select></label><label><span class="sr-only">Time period</span><select id="days"><option value="7">Past 7 days</option><option value="30" selected>Past 30 days</option><option value="90">Past 90 days</option></select></label><label><span class="sr-only">Importance</span><select id="impact"><option value="all">All importance</option><option value="high">High impact</option><option value="watch">Worth following</option><option value="update">General update</option></select></label></div>
+      <div id="topics" class="topic-row" aria-label="Topics"><button class="topic active" data-topic="all" aria-pressed="true">All stories</button><button class="topic" data-topic="ESG policy" aria-pressed="false">ESG policy</button><button class="topic" data-topic="Green investment" aria-pressed="false">Green investment</button><button class="topic" data-topic="Transition finance" aria-pressed="false">Transition finance</button><button class="topic" data-topic="Nature finance" aria-pressed="false">Nature finance</button><button class="topic" data-topic="Carbon markets" aria-pressed="false">Carbon markets</button></div>
+    </section>
+    <div class="workspace">
+      <section id="news" class="news-section" aria-label="News stories" tabindex="-1">
+        <div class="feed-toolbar"><p id="result-count" role="status" aria-live="polite"></p><label class="sort-field"><span>Sort</span><select id="sort" aria-label="Sort stories"><option value="newest">Newest first</option><option value="impact">Importance first</option></select></label></div>
+        <div id="active-filters" class="active-filters" hidden></div>
+        <div id="feed"></div>
+        <button id="show-more" class="show-more" hidden>Show more stories</button>
+        <noscript><p class="empty">Please enable JavaScript to browse and filter this reading list.</p></noscript>
+      </section>
+      <aside class="sidebar">
+        <section class="impact-panel"><div class="panel-eyebrow">READ WITH CONTEXT</div><h2>Importance,<br> explained.</h2><p>Look beyond the headline. Each story includes our assessment and the reason behind it.</p><div class="impact-options" role="group" aria-label="Filter by importance"><button data-impact="high" aria-pressed="false"><span class="impact-label high">High impact</span><span>Broad policy or market significance</span></button><button data-impact="watch" aria-pressed="false"><span class="impact-label watch">Worth following</span><span>A development to keep on your radar</span></button><button data-impact="update" aria-pressed="false"><span class="impact-label update">General update</span><span>Useful context and project progress</span></button></div><button class="method-button" data-method>How we assess importance <span aria-hidden="true">↗</span></button></section>
+        <div class="source-note"><span class="section-kicker">STRAIGHT TO THE SOURCE</span><h3>Clarity starts with context.</h3><p>Short publisher excerpts link to the original publication. Automatic priority and policy labels are based on the headline and excerpt, so check the source for detail.</p><span class="source-note-foot">Publisher excerpts · Explained priority</span><button class="coverage-link" data-sources>View sources & coverage</button></div>
+      </aside>
+    </div>
+    <footer><span class="footer-brand">Sustain<span>.</span></span><p>An independent reader of selected public feeds. Excerpts belong to their publishers. Automatic assessments may be incomplete; verify original sources. Coverage is not exhaustive.</p><button data-about>About Sustain</button></footer>
+  </main>
+  <dialog id="info-dialog" aria-labelledby="dialog-title"><div class="dialog-top"><span class="section-kicker">SUSTAIN / READER NOTES</span><button id="close-dialog" class="close-button" aria-label="Close reader notes">×</button></div><h2 id="dialog-title"></h2><div id="dialog-content"></div></dialog>
+</body>
+</html>

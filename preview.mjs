@@ -1,0 +1,10 @@
+import http from 'node:http';
+import { mkdir } from 'node:fs/promises';
+import { localDatabase } from './scripts/local-db.mjs';
+import worker from './dist/server/index.js';
+await mkdir('.sites-runtime',{recursive:true});
+const DB=localDatabase('.sites-runtime/news.sqlite');
+const env={DB,SUSTAIN_CLOUD_URL:process.env.SUSTAIN_CLOUD_URL,SUSTAIN_CLOUD_READ_TOKEN:process.env.SUSTAIN_CLOUD_READ_TOKEN};
+const server=http.createServer(async(req,res)=>{try{const headers=new Headers(req.headers);headers.set('oai-authenticated-user-id','local-preview-reader');const options={method:req.method,headers};if(!['GET','HEAD'].includes(req.method)){options.body=req;options.duplex='half';}const request=new Request('http://127.0.0.1:4173'+req.url,options);const response=await worker.fetch(request,env,{waitUntil:p=>p.catch(console.error)});res.writeHead(response.status,Object.fromEntries(response.headers));res.end(Buffer.from(await response.arrayBuffer()));}catch(error){console.error(error);res.writeHead(500);res.end('Preview error');}});
+server.listen(4173,'127.0.0.1',()=>console.log('Local: http://127.0.0.1:4173/'));
+process.on('SIGINT',()=>server.close(()=>{DB.close();process.exit(0);}));

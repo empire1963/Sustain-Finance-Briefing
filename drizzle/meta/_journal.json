@@ -1,0 +1,27 @@
+{
+  "version": "7",
+  "dialect": "sqlite",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "6",
+      "when": 1789663446785,
+      "tag": "0000_massive_maelstrom",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1789664910430,
+      "tag": "0001_short_swordsman",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1789666326111,
+      "tag": "0002_premium_fixer",
+      "breakpoints": true
+    }
+  ]
+}
