@@ -1,21 +1,22 @@
 {
   "name": "sustain-briefing",
-  "version": "2.0.0",
+  "version": "3.0.0",
   "private": true,
   "type": "module",
-  "packageManager": "pnpm@11.19.0",
+  "engines": {
+    "node": "24.x"
+  },
   "scripts": {
-    "build": "node scripts/build.mjs",
-    "dev": "node preview.mjs",
-    "test": "node --test tests/*.test.mjs",
-    "db:generate": "drizzle-kit generate"
+    "build": "node scripts/build-vercel.mjs",
+    "dev": "node --env-file-if-exists=.env scripts/dev-vercel.mjs",
+    "build:collector": "node scripts/build-collector.mjs",
+    "test": "node --test tests/*.test.mjs"
   },
   "dependencies": {
-    "fast-xml-parser": "^5.11.1"
+    "@supabase/supabase-js": "2.116.0",
+    "fast-xml-parser": "5.11.1"
   },
   "devDependencies": {
-    "drizzle-kit": "^0.31.10",
-    "drizzle-orm": "^0.45.2",
-    "esbuild": "^0.28.2"
+    "esbuild": "0.28.2"
   }
 }

@@ -1,118 +1,96 @@
-# Deploying Sustain on Vercel
+# Deploy Sustain on Vercel
 
-This source export preserves the existing project. A Vercel adapter has not been
-implemented or deployed. These are the concrete compatibility changes required.
+The Vercel adapter, Supabase authentication and PostgreSQL reader storage are implemented in this export. Follow these steps to configure and deploy them. The export itself does not publish a Vercel deployment or migrate private data.
 
-## 1. Keep the frontend and news logic
+## 1. Prepare the existing Supabase project
 
-The authored frontend is in `dist/`, including `app.js`, `auto-refresh.js` and
-`source-health.js`. The reusable news logic is in `server/feed.mjs`,
-`server/assessment.mjs`, `server/sources.mjs`, `server/deadlines.mjs` and
-`server/news.mjs`.
+Use the project that already runs the Sustain collector and contains `public.sustain_sources` and `public.sustain_collector`.
 
-Retain all JavaScript imports when moving the static files into a Vercel output
-directory. Keep output separate from the authored `dist/` files so a build does
-not erase the source assets.
+Run [`supabase/reader-setup.sql`](./supabase/reader-setup.sql) in its SQL Editor. It adds the reader preferences/saved-story tables and a service-only save RPC. It can be rerun without clearing reader data. The collector tables, Edge Function, Vault and Cron jobs remain in place. Do not apply the SQLite files in `drizzle/` to PostgreSQL or rerun the existing collector schema.
 
-## 2. Replace the Worker entrypoint with Vercel Functions
+The API keeps its privileged Supabase key on the server, verifies each reader using Supabase Auth, and filters all personal operations by the verified user ID. The database rejects direct browser access. See [reader database details](./supabase/README.md) for the schema, save limit and verification queries.
 
-`scripts/build.mjs` currently embeds frontend assets into a Cloudflare Worker
-at `dist/server/index.js`. `server/worker.mjs` dispatches its routes through
-`fetch(request, env, ctx)`. Vercel does not supply this Worker environment.
+## 2. Configure email sign-in
 
-Create Node.js Vercel Functions for these routes, preserving the browser's API
-contract:
+In Supabase Auth, enable the Email provider and **Confirm email**. The application supports account creation, email/password sign-in, password reset and sign-out; its API requires a verified email address.
 
-| Route | Methods | Required behaviour |
-| --- | --- | --- |
-| `/api/news` | GET | Return collected articles, source status, deadlines and collector freshness |
-| `/api/me` | GET | Return the authenticated reader's preferences and saved stories |
-| `/api/preferences` | PUT | Validate and save preferences for that reader |
-| `/api/saved` | POST, DELETE | Validate feed-backed saves and scope all writes to that reader |
+In Auth **URL Configuration**:
 
-Vercel supports functions under `api/` using the Node.js runtime. Set the frontend
-output directory and build command for the migrated implementation; do not use
-the existing Worker build command as if it were a Vercel build.
+- Set **Site URL** to your production HTTPS website address, for example `https://sustain.example.com/`.
+- Add that exact address to **Redirect URLs**. Confirmation and password-reset links return to `/`.
+- Add `http://127.0.0.1:4174/` for the included local server.
+- Add the exact Vercel preview addresses you use for authentication testing. Avoid a redirect wildcard covering other people's deployments.
 
-Official references:
-- https://vercel.com/docs/functions/runtimes/node-js
-- https://vercel.com/docs/project-configuration/vercel-json
+Use the final Vercel address if you do not have a custom website domain. You can finish this configuration immediately after the first deployment. Supabase's default email delivery has recipient/rate restrictions; configure its SMTP settings when needed for your intended readers. Confirm actual email delivery before relying on sign-up or password reset. [Password authentication](https://supabase.com/docs/guides/auth/passwords), [redirect configuration](https://supabase.com/docs/guides/auth/redirect-urls).
 
-## 3. Replace the D1 storage binding
+## 3. Configure environment values
 
-The current `env.DB` binding is Cloudflare D1. It is used in `server/store.mjs`,
-`server/cloud-sync.mjs` and `server/reader.mjs`. It is not an environment variable
-containing a database URL, and Vercel cannot create it from `.openai/hosting.json`.
+For local development, copy `.env.example` to `.env`. In Vercel, add the same values in the project's Environment Variables settings for Production and any Preview environments you will use.
 
-Use durable storage available through HTTP or a supported database connection.
-The existing Supabase project is one possible destination. Port the D1 tables in
-`db/schema.ts` and `drizzle/*.sql`, and rewrite D1 prepared-statement calls for
-that database. SQLite migrations cannot be run unchanged against PostgreSQL.
-Do not use `scripts/local-db.mjs` or a function's temporary filesystem for durable
-production storage.
+| Variable | Required value |
+| --- | --- |
+| `SUPABASE_URL` | Existing collector project's HTTPS API URL |
+| `SUPABASE_PUBLISHABLE_KEY` | Its `sb_publishable_...` key; exposed to the browser for Auth |
+| `SUPABASE_SECRET_KEY` | Its `sb_secret_...` server key; never exposed to the browser |
+| `SUSTAIN_ALLOWED_EMAILS` | Comma-separated approved email addresses for private mode |
+| `SUSTAIN_PUBLIC_NEWS` | Leave `false` for private mode; optionally set exactly `true` for public news |
 
-If moving to Supabase, enable row-level security, scope saved stories and
-preferences to verified user IDs, and keep database admin keys on the server.
-The existing Supabase schema in `cloud/schema.sql` stores public news only; it
-does not yet contain the reader tables required for this migration.
+Private mode is the default. An empty allowed-email list grants no reader access. Emails are compared without case sensitivity after server-side Auth verification. The allowed list and secret key are not included in `/api/config`.
 
-## 4. Replace ChatGPT Sites authentication
+Setting `SUSTAIN_PUBLIC_NEWS=true` makes the news feed readable without signing in and permits any verified account to use its own saved stories and preferences. Personal records still require authentication and remain scoped to that account. This setting therefore opens access beyond the private email list; use it only when that is intended.
 
-`server/reader.mjs` currently expects a trusted `oai-authenticated-user-id` header
-supplied by Sites. Vercel does not supply that identity. Never trust a browser
-that sends this header itself.
+The following server-only values are optional:
 
-Integrate a real authentication provider, for example Supabase Auth, and verify
-the session in every personal-data API handler. Replace the frontend's
-`/signin-with-chatgpt` link and ChatGPT-specific sign-in messages. Preserve the
-same-origin write checks, validation and reader isolation in the existing code.
+| Variable | Purpose |
+| --- | --- |
+| `SUSTAIN_CLOUD_URL` | Existing collector's HTTPS `/functions/v1/sustain-feed/snapshot` URL |
+| `SUSTAIN_CLOUD_READ_TOKEN` | Matching private reader token for that endpoint |
 
-The current site is private. Vercel hosting does not inherit that access policy.
-Choose access controls before exposing private data. Existing D1 saved stories
-and preferences are not contained in this ZIP; migrating them is a separate data
-export/import step and requires mapping the old identities to the new accounts.
+Set both optional values to use the Edge snapshot first. If they are absent, Vercel reads the collector's durable tables directly. If the snapshot endpoint fails, the backend also falls back to those tables. The reader token is not needed for the normal direct-table setup.
 
-Reference: https://supabase.com/docs/guides/auth
+Do not put the secret key or snapshot token in client code, URLs, Git, or a public-prefixed environment variable. Redeploy after changing Vercel environment values so the new deployment uses them.
 
-## 5. Reuse the cloud collector
+## 4. Build locally
 
-The existing Supabase collector can continue independently of Vercel.
-Configure the following as Vercel server-side environment values:
+Use Node.js **24.x** and npm:
 
-```dotenv
-SUSTAIN_CLOUD_URL=https://uapantevajhyxerdppnc.supabase.co/functions/v1/sustain-feed/snapshot
-SUSTAIN_CLOUD_READ_TOKEN=<existing private reader token>
+```sh
+npm ci
+npm run build
+npm test
+npm run dev
 ```
 
-The snapshot endpoint requires `X-Sustain-Reader`. It must be requested by a
-server function; never expose its token in browser JavaScript. Reuse
-`validateSnapshot()` from `server/cloud-sync.mjs` and preserve stale data on
-transient network errors.
+The local address is `http://127.0.0.1:4174/`. It uses the same Supabase API and Auth checks as Vercel and does not inject a fake user. Rebuild after frontend changes. `package-lock.json` pins the npm installation.
 
-`cloud/schedule.sql` contains the updated schedule: it wakes every minute and
-dispatches collection when source checks are due or recovery is needed. Normal
-publisher collection remains approximately every 15 minutes. A failed gateway
-request leaves collection due for a later retry. The schedule uses Supabase
-Vault for its private collector token. Vercel Cron is not required for this
-existing setup.
+The build bundles `dist/app.js` and copies the authored HTML/CSS into `public/`. Keep `dist/` as source. API functions live in `api/` and call `runtime/`; they are not static files in `public/`.
 
-For a new Supabase project, replace the project endpoint in `cloud/schedule.sql`,
-apply the collector schema and service policies, insert the singleton collector
-row (`insert into public.sustain_collector(id) values(true)`), generate new
-random reader/collector tokens, store the collector token in Vault, and put
-their SHA-256 hashes in `cloud/auth-config.json`. Bundle with
-`node scripts/build-collector.mjs`, then deploy the resulting Edge Function as
-`sustain-feed` with platform JWT verification disabled only because every
-route performs the existing custom token validation. Configure the schedule
-and verify both an actual collection and its HTTP response.
+## 5. Import and deploy
 
-## 6. Verify before deploying
+Import the complete project into Vercel, usually through your Git repository. Choose the directory containing this `package.json` as Root Directory.
 
-After implementing the adapter, test news responses, automatic retries,
-sign-in/out, isolation between two readers, saved stories and preferences,
-mobile layouts and failed collector requests. The exported 29 tests validate
-the current implementation; they do not validate an unimplemented Vercel port.
+| Setting | Value |
+| --- | --- |
+| Framework Preset | **Other** |
+| Node.js version | **24.x** |
+| Install Command | `npm ci` |
+| Build Command | `npm run build` |
+| Output Directory | `public` |
 
-Then import the migrated project into Vercel, configure its runtime environment
-values, deploy, and verify the production endpoints and persistence. This ZIP
-does not deploy a site automatically.
+The supplied `vercel.json` already declares these build/output settings and the API function configuration. Add environment values, deploy, and finish the Supabase redirect URLs from step 2. Vercel supports the configured [Node.js 24 runtime](https://vercel.com/docs/functions/runtimes/node-js/node-js-versions) and [project configuration](https://vercel.com/docs/project-configuration/vercel-json).
+
+The Content Security Policy permits the standard `*.supabase.co` and `*.supabase.in` hosts. If `SUPABASE_URL` uses a **custom Supabase API hostname**, add that exact HTTPS origin to `connect-src` in `vercel.json` before deploying. A custom website domain only needs the corresponding Supabase Auth redirect settings.
+
+## 6. Verify the deployed application
+
+Create an approved account, confirm its email, and sign in. Check that news and source timestamps load, a saved story and preferences survive a reload, and sign-out removes private content from the interface. Check a second approved account sees its own reading list. In private mode, a signed-out `/api/news` request must return 401 and an unapproved verified account must be denied.
+
+The existing collector works independently of Vercel: its schedule checks every minute for due work or recovery, while normal feed collection remains approximately every 15 minutes. Vercel Cron is unnecessary. Check actual completed-run timestamps in the application; a successful schedule entry alone does not prove the HTTP collection finished.
+
+Durable news remains in Supabase even between Vercel cold starts. A warm function retains its last loaded snapshot on temporary failures; a fresh function cannot load news while all Supabase access is unavailable and returns a retryable error instead.
+
+## Existing data and legacy source
+
+Old Sites D1 saved stories and preferences are not inside the source archive. They do not transfer automatically to Supabase Auth accounts. A separate migration must export those records and map each old reader identity to its verified new account before importing.
+
+The original Sites Worker, D1 schema/migrations and `.openai/hosting.json` are retained as legacy source. They are not Vercel configuration and do not supply authentication or a database binding to the new runtime. Shared news parsing and assessment modules remain in use. The existing `cloud/` files preserve the collector's source and configuration; reusing that collector does not require redeploying it.

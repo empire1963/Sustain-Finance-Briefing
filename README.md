@@ -1,37 +1,46 @@
 # Sustain
 
-A private, mobile-friendly sustainable-finance reader on Sites with a Cloudflare Worker and D1 storage.
+A mobile-friendly sustainable-finance reader, prepared for **Vercel with Node.js 24 and Supabase**. This export includes the frontend, Vercel API functions, email/password authentication, durable reader storage, and integration with the existing cloud news collector. It has not been deployed to Vercel as part of this export.
 
-## News and coverage
+Start with [START-HERE.md](./START-HERE.md), then follow [VERCEL-MIGRATION.md](./VERCEL-MIGRATION.md) for deployment.
 
-Seventeen public RSS feeds are configured in server/sources.mjs. Six new official feeds cover the European Investment Bank, European Commission Finance, FCA, ECB, BIS and SEC. ADB uses its official FeedBurner distribution because its native endpoint rejects the collector cloud region. Endpoints were verified on 17 September 2026. Broad official feeds are filtered for sustainable finance and may return zero relevant items. Availability does not imply complete geographic or publisher coverage.
+## Run locally
 
-Cloud collection is enabled through Supabase Cron and the sustain-feed Edge Function in project uapantevajhyxerdppnc (London). The collector runs every 15 minutes with no user device required. Two separate 256-bit tokens control collection and snapshot reads. Only their SHA-256 hashes are in source; the collector token is in Supabase Vault and the reader token in Sites secret environment. The Edge Function authenticates every request and uses its own built-in Supabase admin credential; that database credential never leaves the function.
+Use Node.js 24. Copy `.env.example` to `.env`, fill in your existing Supabase project's values, and run `supabase/reader-setup.sql` in that project's SQL Editor.
 
-Supabase stores only public-feed news and collector health. Its two public-schema tables have RLS, revoked anon/authenticated grants and service-role-only policies. An expiring conditional-write lease coordinates collection. The Site synchronises at most once per minute, keeps a D1 copy and preserves previous news if the cloud read fails. Saved stories and preferences remain in Sites D1. Cloud health reports actual completed runs; source attempt/success times remain distinct.
+```sh
+npm ci
+npm run build
+npm test
+npm run dev
+```
 
-The primary job is sustain-news-collector. A daily cleanup retains only 14 days of its cron history. Publisher feeds remain capped at 100 articles and 90 days; even failed feeds prune dated expired records. Cloud retention does not affect user-saved snapshots. If Supabase is paused or unavailable, cached news remains visible and the status shows the delay. No email or push notifications are created.
+Open [http://127.0.0.1:4174](http://127.0.0.1:4174). This uses real Supabase sign-in and storage. Rebuild after editing frontend assets. The npm lockfile is the dependency source for this deployment.
 
-The remote schema is defined in cloud/schema.sql and cloud/service-policies.sql, applied as recorded Supabase migrations. cloud/collector.mjs uses the same feed parser, source list and retrieval code as the Site. Build its self-contained bundle with node scripts/build-collector.mjs; no runtime dependency download is needed. The application lockfile pins the bundled dependencies. Supabase project creation was quoted at $0 per month for this organisation; usage remains subject to its plan limits.
+## What is included
 
-Collected stories last up to 90 days, capped at 100 per source. Failed feeds retain their last successful data and show separate attempt/success timestamps. There is no sample-news fallback. Article URLs are deduplicated. Exact or very similar headlines can be grouped only with matching stage, topic, region and nearby dates; every publisher link remains. Different stages or conflicting identified amounts stay separate. Syndicated coverage does not increase priority.
+- Global sustainable-finance news from 17 selected public feeds, including official institutions and regulators.
+- Short publisher excerpts, source links, explained priority scores, funding/policy stages, and related coverage.
+- Topic and region preferences, a daily briefing generated on opening the site, and up to 500 saved stories per account.
+- Curated policy milestones and calendar downloads.
+- Cloud collection approximately every 15 minutes, with automatic retries through the existing Supabase schedule.
 
-## Briefs and priority
+Public feeds provide selected coverage, not every sustainable-finance story. Excerpts are capped at 45 words / 330 characters; this application does not fetch paywalled articles or generate full-article AI summaries. Priority is a rule-based reading aid whose reasons are shown. The six calendar milestones were verified on 17 September 2026 and need editorial updates when policies change. Email and push news delivery are not configured.
 
-Publisher excerpts are limited to 45 words / 330 characters. Full content:encoded articles, images and paywalled content are not fetched. Cards add extracted stage, first currency amount and qualifications. No generative AI or full-article summarisation service is used. Reading context is general topic context, not a transaction-specific conclusion.
+## Runtime and storage
 
-server/assessment.mjs explains priority through stage, explicitly named geographic scope and currency amounts. Intentions, proposals and conditional funding have capped scale points. Reversals can be high priority. USD/EUR/GBP use rough nominal bands, with no conversion; other currencies receive no scale points. Unknown scope receives no scope points. The score is a reading aid, not investment advice or a reliability measure. Every component is exposed in the rating explanation and method dialog.
+`dist/` contains authored frontend files. `npm run build` writes static output to `public/`. `api/*.js` supplies `/api/config`, `/api/news`, `/api/me`, `/api/preferences`, and `/api/saved`; `runtime/` implements their Vercel behavior. `vercel.json` configures the build, output, functions, and security headers.
 
-## Personal reading and calendar
+The Vercel backend verifies Supabase Auth access tokens on every protected request. Access defaults to verified accounts listed in the server-only `SUSTAIN_ALLOWED_EMAILS`. Reader data is stored in `sustain_reader_preferences` and `sustain_saved_stories`; [reader setup](./supabase/README.md) documents their access model and atomic save limit.
 
-The platform supplies the authenticated user ID. /api/me, /api/preferences and /api/saved require this identity. Writes require a same-origin JSON request, validate bounded inputs, and use prepared SQL. Each reader owns preferences and up to 500 saved snapshots, persisted in D1 across devices. Saved URLs must exist in collected feeds. No client-selected user ID is trusted. The local-only preview injects a fixed preview identity; production never does.
+The existing Supabase collector remains responsible for fetching publisher feeds. It keeps public news in `sustain_sources` and run status in `sustain_collector`, capped at 100 articles per source and 90 days. Vercel can read these durable tables directly. Optional snapshot endpoint settings use the existing Edge Function first and fall back to the tables if that endpoint fails. A warm Vercel function also retains its last loaded snapshot during temporary errors; a cold function still needs Supabase to load news.
 
-Daily briefing selects up to ten highest-priority collected articles from the past 24 hours matching the reader's topics and regions. It is calculated on visiting the site; optional default opening is saved with preferences. Email and push delivery are not configured. Saved stories remain until removed and explicitly display that their excerpt and assessment are snapshots.
+Shared parsing, scoring, deadlines and grouping live in `server/`. The original Sites Worker, D1 helpers, `db/`, `drizzle/`, and `.openai/hosting.json` remain as legacy source; the Vercel runtime does not use the Sites identity or D1 binding. Legacy Sites build helpers are preserved for reference and are not part of the Vercel package scripts.
 
-server/deadlines.mjs contains six curated official milestones with scope, status, evidence, source link and verification date (17 September 2026). These are date-only events, not invented deadline times. The selected calendar is not automatically re-verified. RFC 5545 calendar downloads are snapshots without automatic updates.
+## Source, credentials and data
 
-## Build and verification
+No plaintext credentials, installed dependencies, Git history, private reading lists or preferences are part of this export. Configure secrets in Vercel's environment settings and keep `.env` local. `cloud/auth-config.json` contains the existing collector's token hashes, which cannot recover its tokens; preserve them when reusing that collector.
 
-Use pnpm install --frozen-lockfile, node scripts/build.mjs, then node preview.mjs. Preview serves the built Worker using Node 24 SQLite in ignored .sites-runtime. dist/index.html, dist/styles.css and dist/app.js are authored assets embedded in dist/server/index.js at build time. Restart preview after builds. Production uses the existing Sites identity and owner-private access.
+Existing saved stories in Sites D1 are not included and will not automatically appear under new Supabase accounts. Migrating those records needs a separate data export and a verified mapping from the old identities to the new accounts.
 
-Run node --test tests/*.test.mjs for parsing, hostile input, retention, publisher failures, concurrent refresh, conservative prioritisation, related-source preservation, per-reader isolation and validated saves. Check /api/news for source availability. Schema migrations are generated from db/schema.ts with Drizzle and copied into the deployment bundle. Applied migrations are immutable; new changes append migrations. No production schema changes run in requests.
+Run `npm test` for the regression suite. SQL verification and its limits are recorded in [supabase/README.md](./supabase/README.md). Production sign-in, redirects, allowed-account access and persistence must also be checked after your deployment.

@@ -16,7 +16,7 @@ export function validateSnapshot(data,now=Date.now()){
   for(const key of ['last_started','last_finished','run_count'])if(!Number.isSafeInteger(data.collector[key])||data.collector[key]<0)throw new Error('Invalid collector status');
   return data;
 }
-async function readJsonBounded(response){
+export async function readJsonBounded(response){
   const reader=response.body?.getReader();if(!reader)throw new Error('Empty snapshot');let size=0,parts=[];
   try{while(true){const {done,value}=await reader.read();if(done)break;size+=value.length;if(size>8000000)throw new Error('Snapshot exceeds size limit');parts.push(value);}}finally{await reader.cancel().catch(()=>{});}
   const bytes=new Uint8Array(size);let offset=0;for(const p of parts){bytes.set(p,offset);offset+=p.length;}return JSON.parse(new TextDecoder().decode(bytes));
