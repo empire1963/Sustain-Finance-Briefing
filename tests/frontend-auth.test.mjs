@@ -206,6 +206,7 @@ function appFixture(handler=async()=>({saved:[],preferences:{topics:[],regions:[
     StaleSessionError,createReaderAuth:()=>auth,
     createAutoRefresh:()=>{const timer={stopped:false,stop(){this.stopped=true;},run(){}};refreshers.push(timer);return timer;},
     sourceHealth:()=>({text:'Source status',failed:0,pending:0,overdue:0}),setTimeout:fn=>{timers.push(fn);return timers.length;},
+    inject:()=>{}, // Mock Vercel Analytics inject function
   });
   vm.runInContext(appSource,context);
   const run=source=>vm.runInContext(source,context);
